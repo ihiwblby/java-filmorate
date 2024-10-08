@@ -68,4 +68,16 @@ public class UserControllerTest {
         user.setBirthday(LocalDate.of(2064, 10, 24));
         assertThrows(ValidationException.class, () -> userController.validate(user));
     }
+
+    @Test
+    void shouldNotAddSameUsersWithoutId() {
+        userController.create(user);
+        User duplicateUser = User.builder()
+                .email(user.getEmail())
+                .login(user.getLogin())
+                .name(user.getName())
+                .birthday(user.getBirthday())
+                .build();
+        assertThrows(ValidationException.class, () -> userController.create(duplicateUser));
+    }
 }

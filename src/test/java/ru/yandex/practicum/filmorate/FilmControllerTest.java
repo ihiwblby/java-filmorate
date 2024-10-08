@@ -48,19 +48,19 @@ public class FilmControllerTest {
     @Test
     void shouldNotAddFilmWithNullReleaseDate() {
         film.setReleaseDate(null);
-        assertThrows(ValidationException.class, () -> filmController.validateFilmReleaseDate(film));
+        assertThrows(ValidationException.class, () -> filmController.create(film));
     }
 
     @Test
     void shouldNotAddFilmWithTooEarlyDate() {
         film.setReleaseDate(LocalDate.of(1700,12,11));
-        assertThrows(ValidationException.class, () -> filmController.validateFilmReleaseDate(film));
+        assertThrows(ValidationException.class, () -> filmController.create(film));
     }
 
     @Test
     void shouldNotAddFilmWithReleaseDateFromFuture() {
         film.setReleaseDate(LocalDate.of(2064,12,11));
-        assertThrows(ValidationException.class, () -> filmController.validateFilmReleaseDate(film));
+        assertThrows(ValidationException.class, () -> filmController.create(film));
     }
 
     @Test

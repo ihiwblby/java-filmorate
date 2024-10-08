@@ -58,7 +58,7 @@ public class FilmController {
         return ++currentMaxId;
     }
 
-    public void validateFilmReleaseDate(Film film) {
+    private void validateFilmReleaseDate(Film film) {
         if (film.getReleaseDate() == null) {
             log.warn("Отсутствует дата релиза фильма");
             throw new ValidationException("Отсутствует дата релиза фильма");
