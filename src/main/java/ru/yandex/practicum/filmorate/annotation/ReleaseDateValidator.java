@@ -12,7 +12,7 @@ public class ReleaseDateValidator implements ConstraintValidator<ValidReleaseDat
     @Override
     public boolean isValid(LocalDate releaseDate, ConstraintValidatorContext context) {
         LocalDate earliestReleaseDate = LocalDate.of(1895, 12, 28);
-        if(releaseDate == null) {
+        if (releaseDate == null) {
             log.warn("Отсутствует дата релиза фильма");
             return false;
         }

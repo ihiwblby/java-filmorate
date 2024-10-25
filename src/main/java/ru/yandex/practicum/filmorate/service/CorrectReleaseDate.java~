@@ -1,9 +1,0 @@
-package ru.yandex.practicum.filmorate.service;
-
-import java.lang.annotation.Retention;
-import java.lang.annotation.RetentionPolicy;
-
-@Constraint(validatedBy = ReleaseDateValidator.class)
-@Retention(RetentionPolicy.RUNTIME)
-public interface CorrectReleaseDate {
-}
