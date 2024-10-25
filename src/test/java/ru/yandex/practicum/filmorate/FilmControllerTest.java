@@ -55,8 +55,8 @@ public class FilmControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description").
-                        value("name: Название фильма не может быть пустым"));
+                .andExpect(jsonPath("$.description")
+                        .value("name: Название фильма не может быть пустым"));
     }
 
     @Test
@@ -69,8 +69,8 @@ public class FilmControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description").
-                        value("description: Описание не может быть пустым"));
+                .andExpect(jsonPath("$.description")
+                        .value("description: Описание не может быть пустым"));
     }
 
     @Test
@@ -83,8 +83,8 @@ public class FilmControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description").
-                        value("description: Описание не может быть длиннее 200 символов"));
+                .andExpect(jsonPath("$.description")
+                        .value("description: Описание не может быть длиннее 200 символов"));
     }
 
     @Test
@@ -97,8 +97,8 @@ public class FilmControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description").
-                        value("releaseDate: Некорректная дата релиза"));
+                .andExpect(jsonPath("$.description")
+                        .value("releaseDate: Некорректная дата релиза"));
     }
 
     @Test
@@ -111,8 +111,8 @@ public class FilmControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description").
-                        value("duration: Продолжительность не может быть равной нулю"));
+                .andExpect(jsonPath("$.description")
+                        .value("duration: Продолжительность не может быть равной нулю"));
     }
 
     @Test
@@ -125,7 +125,7 @@ public class FilmControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description").
-                        value("duration: Продолжительность должна быть положительным числом"));
+                .andExpect(jsonPath("$.description")
+                        .value("duration: Продолжительность должна быть положительным числом"));
     }
 }

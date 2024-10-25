@@ -54,8 +54,8 @@ public class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description")
-                        .value("email: email пользователя не может быть пустым"));
+                .andExpect(jsonPath("$.description").
+                        value("email: email пользователя не может быть пустым"));
     }
 
     @Test
@@ -68,8 +68,8 @@ public class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description")
-                        .value("email: email введён некорректно"));
+                .andExpect(jsonPath("$.description").
+                        value("email: email введён некорректно"));
     }
 
     @Test
@@ -82,8 +82,8 @@ public class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description")
-                        .value("login: Логин пользователя не может быть пустым"));
+                .andExpect(jsonPath("$.description").
+                        value("login: Логин пользователя не может быть пустым"));
     }
 
     @Test
@@ -96,8 +96,8 @@ public class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description")
-                        .value("login: Логин должен быть без пробелов"));
+                .andExpect(jsonPath("$.description").
+                        value("login: Логин должен быть без пробелов"));
     }
 
     @Test
@@ -110,8 +110,8 @@ public class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description")
-                        .value("birthday: Дата рождения не может быть равной нулю"));
+                .andExpect(jsonPath("$.description").
+                        value("birthday: Дата рождения не может быть равной нулю"));
     }
 
     @Test
@@ -124,7 +124,7 @@ public class UserControllerTest {
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
-                .andExpect(jsonPath("$.description")
-                        .value("birthday: Дата рождения не может быть в будущем"));
+                .andExpect(jsonPath("$.description").
+                        value("birthday: Дата рождения не может быть в будущем"));
     }
 }
