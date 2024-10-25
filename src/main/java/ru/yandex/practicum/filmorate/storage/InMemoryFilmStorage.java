@@ -27,18 +27,6 @@ public class InMemoryFilmStorage implements FilmStorage {
     @Override
     public Film update(Film film) {
         final Film existingFilm = getById(film.getId());
-        if (film.getName() == null || film.getName().isBlank()) {
-            film.setName(existingFilm.getName());
-        }
-        if (film.getDescription() == null || film.getDescription().isBlank()) {
-            film.setDescription(existingFilm.getDescription());
-        }
-        if (film.getReleaseDate() == null) {
-            film.setReleaseDate(existingFilm.getReleaseDate());
-        }
-        if (film.getDuration() == null) {
-            film.setDuration(existingFilm.getDuration());
-        }
         films.put(existingFilm.getId(), film);
         log.info("Информация о фильме {} обновлена", film.getName());
         return film;
