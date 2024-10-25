@@ -37,12 +37,13 @@ public class FilmControllerTest {
 
     @BeforeEach
     void setUp() {
-        film = new Film();
-        film.setId(1L);
-        film.setName("Название");
-        film.setDescription("Описание");
-        film.setReleaseDate(LocalDate.of(2001, 10, 24));
-        film.setDuration(100);
+        film = Film.builder()
+                .id(1L)
+                .name("Название")
+                .description("Описание")
+                .releaseDate(LocalDate.of(2001, 10, 24))
+                .duration(100)
+                .build();
     }
 
     @Test

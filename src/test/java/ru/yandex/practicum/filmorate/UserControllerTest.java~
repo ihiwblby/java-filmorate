@@ -9,10 +9,10 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
-import ru.yandex.practicum.filmorate.controller.FilmController;
-import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.service.FilmService;
-import ru.yandex.practicum.filmorate.storage.FilmStorage;
+import ru.yandex.practicum.filmorate.controller.UserController;
+import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.UserService;
+import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.time.LocalDate;
 
@@ -20,112 +20,112 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(FilmController.class)
+@WebMvcTest(UserController.class)
 @AutoConfigureMockMvc
-public class FilmControllerTest {
+public class UserControllerTest {
     @Autowired
     private MockMvc mockMvc;
     @Autowired
     private ObjectMapper objectMapper;
 
     @MockBean
-    private FilmStorage filmStorage;
+    private UserStorage userStorage;
     @MockBean
-    private FilmService filmService;
+    private UserService userService;
 
-    private Film film;
+    private User user;
 
     @BeforeEach
     void setUp() {
-        film = new Film();
-        film.setId(1L);
-        film.setName("Название");
-        film.setDescription("Описание");
-        film.setReleaseDate(LocalDate.of(2001, 10, 24));
-        film.setDuration(100);
+        user = User.builder()
+                .email("test@yandex.ru")
+                .login("MrTest")
+                .name("Тест")
+                .birthday(LocalDate.of(2001, 10, 24))
+                .build();
     }
 
     @Test
-    void shouldThrowExceptionIfNameIsNull() throws Exception {
-        film.setName(null);
-        String jsonFilm = objectMapper.writeValueAsString(film);
+    void shouldThrowExceptionIfEmailIsBlank() throws Exception {
+        user.setEmail(null);
+        String jsonFilm = objectMapper.writeValueAsString(user);
 
-        mockMvc.perform(post("/films")
+        mockMvc.perform(post("/users")
                         .content(jsonFilm)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
                 .andExpect(jsonPath("$.description").
-                        value("name: Название фильма не может быть пустым"));
+                        value("email: email пользователя не может быть пустым"));
     }
 
     @Test
-    void shouldThrowExceptionIfDescriptionIsNull() throws Exception {
-        film.setDescription(null);
-        String jsonFilm = objectMapper.writeValueAsString(film);
+    void shouldThrowExceptionIfEmailIsIncorrect() throws Exception {
+        user.setEmail("@122!");
+        String jsonFilm = objectMapper.writeValueAsString(user);
 
-        mockMvc.perform(post("/films")
+        mockMvc.perform(post("/users")
                         .content(jsonFilm)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
                 .andExpect(jsonPath("$.description").
-                        value("description: Описание не может быть пустым"));
+                        value("email: email введён некорректно"));
     }
 
     @Test
-    void shouldThrowExceptionIfDescriptionIsLong() throws Exception {
-        film.setDescription(".".repeat(201));
-        String jsonFilm = objectMapper.writeValueAsString(film);
+    void shouldThrowExceptionIfLoginIsBlank() throws Exception {
+        user.setLogin(null);
+        String jsonFilm = objectMapper.writeValueAsString(user);
 
-        mockMvc.perform(post("/films")
+        mockMvc.perform(post("/users")
                         .content(jsonFilm)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
                 .andExpect(jsonPath("$.description").
-                        value("description: Описание не может быть длиннее 200 символов"));
+                        value("login: Логин пользователя не может быть пустым"));
     }
 
     @Test
-    void shouldThrowExceptionIfReleaseDateIsNotValid() throws Exception {
-        film.setReleaseDate(LocalDate.of(1600,10,10));
-        String jsonFilm = objectMapper.writeValueAsString(film);
+    void shouldThrowExceptionIfLoginWithSpaces() throws Exception {
+        user.setLogin("Ваня Ваня");
+        String jsonFilm = objectMapper.writeValueAsString(user);
 
-        mockMvc.perform(post("/films")
+        mockMvc.perform(post("/users")
                         .content(jsonFilm)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
                 .andExpect(jsonPath("$.description").
-                        value("releaseDate: Некорректная дата релиза"));
+                        value("login: Логин должен быть без пробелов"));
     }
 
     @Test
-    void shouldThrowExceptionIfDurationIsNull() throws Exception {
-        film.setDuration(null);
-        String jsonFilm = objectMapper.writeValueAsString(film);
+    void shouldThrowExceptionIfBirthdayIsNull() throws Exception {
+        user.setBirthday(null);
+        String jsonFilm = objectMapper.writeValueAsString(user);
 
-        mockMvc.perform(post("/films")
+        mockMvc.perform(post("/users")
                         .content(jsonFilm)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
                 .andExpect(jsonPath("$.description").
-                        value("duration: Продолжительность не может быть равной нулю"));
+                        value("birthday: Дата рождения не может быть равной нулю"));
     }
 
     @Test
-    void shouldThrowExceptionIfDurationIsNegative() throws Exception {
-        film.setDuration(-10);
-        String jsonFilm = objectMapper.writeValueAsString(film);
+    void shouldThrowExceptionIfBirthdayInFuture() throws Exception {
+        user.setBirthday(LocalDate.of(2025,10,24));
+        String jsonFilm = objectMapper.writeValueAsString(user);
 
-        mockMvc.perform(post("/films")
+        mockMvc.perform(post("/users")
                         .content(jsonFilm)
                         .contentType(MediaType.APPLICATION_JSON))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error").value("Ошибка валидации"))
                 .andExpect(jsonPath("$.description").
-                        value("duration: Продолжительность должна быть положительным числом"));
+                        value("birthday: Дата рождения не может быть в будущем"));
     }
 }

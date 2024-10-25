@@ -1,83 +1,130 @@
 package ru.yandex.practicum.filmorate;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
 import ru.yandex.practicum.filmorate.controller.UserController;
-import ru.yandex.practicum.filmorate.exception.ValidationException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.service.UserService;
+import ru.yandex.practicum.filmorate.storage.UserStorage;
 
 import java.time.LocalDate;
 
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@WebMvcTest(UserController.class)
+@AutoConfigureMockMvc
 public class UserControllerTest {
-    private UserController userController;
+    @Autowired
+    private MockMvc mockMvc;
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @MockBean
+    private UserStorage userStorage;
+    @MockBean
+    private UserService userService;
+
     private User user;
 
     @BeforeEach
     void setUp() {
-        userController = new UserController();
-        user = User.builder()
-                .email("test@yandex.ru")
-                .login("MrTest")
-                .name("Тест")
-                .birthday(LocalDate.of(2001, 10, 24))
-                .build();
+        user = new User();
+        user.setEmail("test@yandex.ru");
+        user.setLogin("MrTest");
+        user.setName("Тест");
+        user.setBirthday(LocalDate.of(2001, 10, 24));
     }
 
     @Test
-    void correctValidationWithName() {
-        User createdUser = userController.create(user);
-        assertTrue(userController.findAll().contains(createdUser));
+    void shouldThrowExceptionIfEmailIsBlank() throws Exception {
+        user.setEmail(null);
+        String jsonFilm = objectMapper.writeValueAsString(user);
+
+        mockMvc.perform(post("/users")
+                        .content(jsonFilm)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации"))
+                .andExpect(jsonPath("$.description").
+                        value("email: email пользователя не может быть пустым"));
     }
 
     @Test
-    void correctValidationWithoutName() {
-        user.setName(null);
-        User createdUser = userController.create(user);
-        assertTrue(userController.findAll().contains(createdUser));
+    void shouldThrowExceptionIfEmailIsIncorrect() throws Exception {
+        user.setEmail("@122!");
+        String jsonFilm = objectMapper.writeValueAsString(user);
+
+        mockMvc.perform(post("/users")
+                        .content(jsonFilm)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации"))
+                .andExpect(jsonPath("$.description").
+                        value("email: email введён некорректно"));
     }
 
     @Test
-    void shouldNotAddUserWithBlankEmail() {
-        user.setEmail(" ");
-        assertThrows(ValidationException.class, () -> userController.validate(user));
+    void shouldThrowExceptionIfLoginIsBlank() throws Exception {
+        user.setLogin(null);
+        String jsonFilm = objectMapper.writeValueAsString(user);
+
+        mockMvc.perform(post("/users")
+                        .content(jsonFilm)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации"))
+                .andExpect(jsonPath("$.description").
+                        value("login: Логин пользователя не может быть пустым"));
     }
 
     @Test
-    void shouldNotAddUserWithBlankLogin() {
-        user.setLogin(" ");
-        assertThrows(ValidationException.class, () -> userController.validate(user));
+    void shouldThrowExceptionIfLoginWithSpaces() throws Exception {
+        user.setLogin("Ваня Ваня");
+        String jsonFilm = objectMapper.writeValueAsString(user);
+
+        mockMvc.perform(post("/users")
+                        .content(jsonFilm)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации"))
+                .andExpect(jsonPath("$.description").
+                        value("login: Логин должен быть без пробелов"));
     }
 
     @Test
-    void shouldNotAddUserWithIncorrectLogin() {
-        user.setLogin("Mr Test");
-        assertThrows(ValidationException.class, () -> userController.validate(user));
-    }
-
-    @Test
-    void shouldNotAddUserWithNullBirthday() {
+    void shouldThrowExceptionIfBirthdayIsNull() throws Exception {
         user.setBirthday(null);
-        assertThrows(ValidationException.class, () -> userController.validate(user));
+        String jsonFilm = objectMapper.writeValueAsString(user);
+
+        mockMvc.perform(post("/users")
+                        .content(jsonFilm)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации"))
+                .andExpect(jsonPath("$.description").
+                        value("birthday: Дата рождения не может быть равной нулю"));
     }
 
     @Test
-    void shouldNotAddUserWithBirthdayFromFuture() {
-        user.setBirthday(LocalDate.of(2064, 10, 24));
-        assertThrows(ValidationException.class, () -> userController.validate(user));
-    }
+    void shouldThrowExceptionIfBirthdayInFuture() throws Exception {
+        user.setBirthday(LocalDate.of(2025,10,24));
+        String jsonFilm = objectMapper.writeValueAsString(user);
 
-    @Test
-    void shouldNotAddSameUsersWithoutId() {
-        userController.create(user);
-        User duplicateUser = User.builder()
-                .email(user.getEmail())
-                .login(user.getLogin())
-                .name(user.getName())
-                .birthday(user.getBirthday())
-                .build();
-        assertThrows(ValidationException.class, () -> userController.create(duplicateUser));
+        mockMvc.perform(post("/users")
+                        .content(jsonFilm)
+                        .contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации"))
+                .andExpect(jsonPath("$.description").
+                        value("birthday: Дата рождения не может быть в будущем"));
     }
 }
