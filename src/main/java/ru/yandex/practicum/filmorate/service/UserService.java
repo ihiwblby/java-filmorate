@@ -7,6 +7,7 @@ import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.storage.UserStorage;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -65,8 +66,10 @@ public class UserService {
         final Set<Long> userFriends = user.getFriends();
         final Set<Long> friendFriends = friend.getFriends();
 
-        final List<User> commonFriends = userFriends.stream()
-                .filter(friendFriends::contains)
+        final Set<Long> commonFriendIds = new HashSet<>(userFriends);
+        commonFriendIds.retainAll(friendFriends);
+
+        final List<User> commonFriends = commonFriendIds.stream()
                 .map(userStorage::getById)
                 .collect(Collectors.toList());
 
