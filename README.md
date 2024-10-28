@@ -13,10 +13,12 @@
 Для каждого пользователя и фильма предусмотрена валидация данных.
 
 ## Структура проекта
-- Модели данных: Film и User _(пакет model)_
+- Модели данных: Film и User + ErrorResponse (для обработки ошибок) _(пакет model)_
 - Хранилище: FilmStorage и UserStorage для работы с данными _(пакет storage)_
 - Сервисы: FilmService и UserService для обработки бизнес-логики _(пакет service)_
-- Контроллеры: FilmController и UserController для обработки REST-запросов _(пакет controller)_
+- Контроллеры: FilmController, UserController и ErrorHandler для обработки REST-запросов _(пакет controller)_
+- Аннотации: кастомная аннотация для валидации даты релиза фильма _(пакет annotation)_
+- Исключения: NotFoundException, ConditionsNotMetException _(пакет exception)_
 
 ## Эндпоинты
 **Для работы с пользователями:**
