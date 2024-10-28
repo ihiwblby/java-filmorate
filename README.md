@@ -13,31 +13,30 @@
 Для каждого пользователя и фильма предусмотрена валидация данных.
 
 **Структура проекта**
-Модели данных: Film и User _(пакет model)_
-Хранилище: FilmStorage и UserStorage для работы с данными _(пакет storage)_
-Сервисы: FilmService и UserService для обработки бизнес-логики _(пакет service)_
-Контроллеры: FilmController и UserController для обработки REST-запросов _(пакет controller)_
-Логирование: Логируются операции добавления, обновления, а также ошибки валидации.
+- Модели данных: Film и User _(пакет model)_
+- Хранилище: FilmStorage и UserStorage для работы с данными _(пакет storage)_
+- Сервисы: FilmService и UserService для обработки бизнес-логики _(пакет service)_
+- Контроллеры: FilmController и UserController для обработки REST-запросов _(пакет controller)_
 
 ## Эндпоинты
 **Для работы с пользователями:**
-POST /users — создание пользователя
-PUT /users — обновление пользователя
-GET /users — получение списка всех пользователей
-GET /users/{id} — получение конкретного пользователя по ID
-PUT /users/{id}/friends/{friendId} — добавление в друзья
-DELETE /users/{id}/friends/{friendId} — удаление из друзей
-GET /users/{id}/friends — список друзей пользователя
-GET /users/{id}/friends/common/{otherId} — список общих друзей с другим пользователем
+- POST /users — создание пользователя
+- PUT /users — обновление пользователя
+- GET /users — получение списка всех пользователей
+- GET /users/{id} — получение конкретного пользователя по ID
+- PUT /users/{id}/friends/{friendId} — добавление в друзья
+- DELETE /users/{id}/friends/{friendId} — удаление из друзей
+- GET /users/{id}/friends — список друзей пользователя
+- GET /users/{id}/friends/common/{otherId} — список общих друзей с другим пользователем
 
 **Для работы с фильмами:**
-POST /films — добавление фильма
-PUT /films — обновление фильма
-GET /films — получение списка всех фильмов
-GET /films/{id} — получение конкретного фильма по ID
-PUT /films/{id}/like/{userId} — лайк фильма
-DELETE /films/{id}/like/{userId} — удаление лайка
-GET /films/popular?count={count} — топ-(count) фильмов по количеству лайков
+- POST /films — добавление фильма
+- PUT /films — обновление фильма
+- GET /films — получение списка всех фильмов
+- GET /films/{id} — получение конкретного фильма по ID
+- PUT /films/{id}/like/{userId} — лайк фильма
+- DELETE /films/{id}/like/{userId} — удаление лайка
+- GET /films/popular?count={count} — топ-(count) фильмов по количеству лайков
 
-ER диаграмма базы данных приложения
+## ER диаграмма базы данных приложения
 ![filmorate ER diagram](https://github.com/ihiwblby/java-filmorate/blob/main/filmorate%20ER-diagram.png)
