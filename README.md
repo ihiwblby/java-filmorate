@@ -41,4 +41,4 @@
 - GET /films/popular?count={count} — топ-(count) фильмов по количеству лайков
 
 ## ER диаграмма базы данных приложения
-![filmorate ER diagram](https://github.com/ihiwblby/java-filmorate/blob/main/filmorate%20ER-diagram.png)
+![filmorate ER diagram](https://github.com/ihiwblby/java-filmorate/blob/main/filmorate%20ER-diagram.png](https://github.com/ihiwblby/java-filmorate/blob/main/src/main/resources/filmorate_er_diagram.png)
