@@ -12,4 +12,12 @@ public interface FilmStorage {
     Collection<Film> findAll();
 
     Film getById(Long id);
+
+    void addLike (Long filmId, Long userId);
+
+    void deleteLike (Long filmId, Long userId);
+
+    Collection<Film> getMostLiked(int count);
+
+    void existsById(Long id);
 }
