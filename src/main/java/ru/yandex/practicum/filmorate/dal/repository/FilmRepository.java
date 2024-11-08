@@ -2,8 +2,6 @@ package ru.yandex.practicum.filmorate.dal.repository;
 
 import lombok.AccessLevel;
 import lombok.experimental.FieldDefaults;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -25,13 +23,81 @@ import java.util.Optional;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class FilmRepository extends BaseRepository<Film> implements FilmStorage {
 
+    static final String SQL_CREATE_FILM = """
+            INSERT INTO films(film_name, description, release_date, duration, mpa_id)
+            VALUES (?, ?, ?, ?, ?)
+            """;
+
+    static final String SQL_UPDATE_FILM = """
+            UPDATE films
+            SET film_name = ?, description = ?, release_date = ?, duration = ?, mpa_id = ?
+            WHERE film_id = ?
+            """;
+
+    static final String SQL_DELETE_GENRES_FROM_FILM = """
+            DELETE FROM film_genres
+            WHERE film_id = ?
+            """;
+
+    static final String SQL_FIND_ALL_FILMS = """
+            SELECT f.*,
+                   r.mpa_name
+            FROM films AS f
+            JOIN mpa_rating AS r ON r.mpa_id = f.mpa_id
+            """;
+
+    static final String SQL_GET_FILM_BY_ID = """
+            SELECT f.*,
+                   r.mpa_name
+            FROM films AS f
+            JOIN mpa_rating AS r ON r.mpa_id = f.mpa_id
+            WHERE f.film_id = ?
+            """;
+
+    static final String SQL_COUNT_FILM_LIKES_BY_USER = """
+            SELECT COUNT(*)
+            FROM film_likes
+            WHERE film_id = ? AND user_id = ?
+            """;
+
+    static final String SQL_ADD_FILM_LIKE = """
+            INSERT INTO film_likes (film_id, user_id)
+            VALUES (?, ?)
+            """;
+
+    static final String SQL_DELETE_FILM_LIKE = """
+            DELETE FROM film_likes
+            WHERE film_id = ? AND user_id = ?
+            """;
+
+    static final String SQL_GET_MOST_LIKED_FILMS = """
+            SELECT f.*,
+                   r.mpa_name
+            FROM films AS f
+            JOIN mpa_rating AS r ON r.mpa_id = f.mpa_id
+            JOIN film_likes AS l ON l.film_id = f.film_id
+            GROUP BY f.film_id
+            ORDER BY COUNT(l.user_id) DESC
+            LIMIT ?
+            """;
+
+    static final String SQL_COUNT_FILMS_BY_ID = """
+            SELECT COUNT(*)
+            FROM films
+            WHERE film_id = ?
+            """;
+
+    static final String SQL_ADD_GENRES_TO_FILM = """
+            INSERT INTO film_genres (film_id, genre_id)
+            VALUES (?, ?)
+            """;
+
     final GenreStorage genreStorage;
     final UserStorage userStorage;
 
-    @Autowired
     public FilmRepository(JdbcTemplate jdbcTemplate,
-                          @Qualifier("FilmRowMapper") RowMapper<Film> mapper,
-                          GenreStorage genreStorage, UserStorage userStorage) {
+                          GenreStorage genreStorage, UserStorage userStorage,
+                          RowMapper<Film> mapper) {
         super(jdbcTemplate, mapper);
         this.genreStorage = genreStorage;
         this.userStorage = userStorage;
@@ -39,26 +105,19 @@ public class FilmRepository extends BaseRepository<Film> implements FilmStorage 
 
     @Override
     public Film create(Film film) {
-        existsById(film.getId());
-
-        String sqlQuery = """
-            INSERT INTO films(film_name, description, release_date, duration, mpa_id)
-            VALUES (?, ?, ?, ?, ?)
-            """;
-
         Long id = insertLong(
-                sqlQuery,
+                SQL_CREATE_FILM,
                 film.getName(),
                 film.getDescription(),
                 film.getReleaseDate(),
                 film.getDuration(),
-                film.getMpaRating().getId()
-        );
+                film.getMpaRating().getId())
+                .orElseThrow(() -> new DatabaseException("Некорректные данные о фильме"));
 
         film.setId(id);
 
         if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            addGenresToFilm(id, film);
+            addGenresToFilm(film);
         }
 
         return film;
@@ -68,13 +127,7 @@ public class FilmRepository extends BaseRepository<Film> implements FilmStorage 
     public Film update(Film film) {
         existsById(film.getId());
 
-        String sqlQuery = """
-            UPDATE films
-            SET film_name = ?, description = ?, release_date = ?, duration = ?, mpa_id = ?
-            WHERE film_id = ?
-        """;
-
-        update(sqlQuery, film.getName(),
+        update(SQL_UPDATE_FILM, film.getName(),
                 film.getDescription(),
                 film.getReleaseDate(),
                 film.getDuration(),
@@ -83,8 +136,8 @@ public class FilmRepository extends BaseRepository<Film> implements FilmStorage 
         );
 
         if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            update("DELETE FROM film_genres WHERE film_id = ?", film.getId());
-            addGenresToFilm(film.getId(), film);
+            update(SQL_DELETE_GENRES_FROM_FILM, film.getId());
+            addGenresToFilm(film);
         }
 
         return film;
@@ -92,74 +145,64 @@ public class FilmRepository extends BaseRepository<Film> implements FilmStorage 
 
     @Override
     public Collection<Film> findAll() {
-        return findMany("SELECT * FROM films")
+        return findMany(SQL_FIND_ALL_FILMS)
                 .orElseThrow(() -> new NotFoundException("Фильмы не найдены"));
     }
 
     @Override
     public Film getById(Long id) {
         existsById(id);
-        return findOne("SELECT * FROM films WHERE film_id = ?", id)
+        return findOne(SQL_GET_FILM_BY_ID, id)
                 .orElseThrow(() -> new NotFoundException("Фильм с id " + id + " не найден"));
     }
 
     @Override
-    public void addLike (Long filmId, Long userId) {
+    public void addLike(Long filmId, Long userId) {
         existsById(filmId);
         userStorage.existsById(userId);
 
-        String checkQuery = "SELECT COUNT(*) FROM film_likes WHERE film_id = ? AND user_id = ?";
-        Optional<Integer> likesCount = findInteger(checkQuery, filmId, userId);
+        Optional<Integer> likesCount = findInteger(SQL_COUNT_FILM_LIKES_BY_USER, filmId, userId);
 
-        if (likesCount.isEmpty()) {
-            String insertQuery = "INSERT INTO film_likes (film_id, user_id) VALUES (?, ?)";
-            update(insertQuery, filmId, userId);
+        if (likesCount.isEmpty() || likesCount.get() == 0) {
+            update(SQL_ADD_FILM_LIKE, filmId, userId);
         } else {
             throw new DatabaseException("Пользователь уже поставил лайк этому фильму");
         }
     }
 
     @Override
-    public void deleteLike (Long filmId, Long userId) {
+    public void deleteLike(Long filmId, Long userId) {
         existsById(filmId);
         userStorage.existsById(userId);
-
-        delete("DELETE FROM film_likes WHERE film_id = ? AND user_id = ?", filmId, userId);
+        delete(SQL_DELETE_FILM_LIKE, filmId, userId);
     }
 
     @Override
     public Collection<Film> getMostLiked(int count) {
-        String sql = """
-                SELECT *
-                FROM films
-                ORDER BY (SELECT COUNT(*) FROM film_likes WHERE film_likes.film_id = films.film_id) DESC LIMIT ?
-                """;
-
-        return findMany(sql, count)
+        return findMany(SQL_GET_MOST_LIKED_FILMS, count)
                 .orElseThrow(() -> new NotFoundException("Фильмы не найдены"));
     }
 
     @Override
     public void existsById(Long filmId) {
-        String checkQuery = "SELECT * FROM films WHERE film_id = ?";
-        Optional<Film> film = findOne(checkQuery, filmId);
-        if (film.isEmpty()) {
+        Optional<Integer> count = findInteger(SQL_COUNT_FILMS_BY_ID, filmId);
+        if (count.isEmpty()) {
             throw new NotFoundException("Фильм с ID " + filmId + " не найден.");
         }
     }
 
-    private void addGenresToFilm(Long filmId, Film film) {
+    private void addGenresToFilm(Film film) {
         final Collection<Genre> existingGenres = genreStorage.findAll();
 
         List<Object[]> batchArgs = new ArrayList<>();
         for (Genre genre : film.getGenres()) {
             if (!existingGenres.contains(genre)) {
-                batchArgs.add(new Object[]{filmId, genre.getId()});
+                batchArgs.add(new Object[]{film.getId(), genre.getId()});
             }
         }
 
         if (!batchArgs.isEmpty()) {
-            batchUpdate("INSERT INTO film_genres (film_id, genre_id) VALUES (?, ?)", batchArgs);
+            batchUpdate(SQL_ADD_GENRES_TO_FILM, batchArgs);
         }
     }
 }

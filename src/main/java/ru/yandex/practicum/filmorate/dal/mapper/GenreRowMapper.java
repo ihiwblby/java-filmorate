@@ -9,7 +9,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 
 @Component
-@Qualifier("GenreRowMapper")
 public class GenreRowMapper implements RowMapper<Genre> {
     @Override
     public Genre mapRow(ResultSet resultSet, int rowNum) throws SQLException {

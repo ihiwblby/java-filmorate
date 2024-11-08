@@ -48,7 +48,6 @@ CREATE TABLE IF NOT EXISTS film_likes (
 CREATE TABLE IF NOT EXISTS user_friends (
     user_id LONG,
     friend_id LONG,
-    is_accepted BOOLEAN,
     PRIMARY KEY (user_id, friend_id),
     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
     FOREIGN KEY (friend_id) REFERENCES users(user_id) ON DELETE CASCADE

@@ -42,7 +42,7 @@ public class ErrorHandler {
     }
 
     @ExceptionHandler
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleDatabase(DatabaseException e) {
         return new ErrorResponse("Произошла ошибка во время работы с базой данных", e.getMessage());
     }

@@ -3,12 +3,11 @@ package ru.yandex.practicum.filmorate.dal.repository;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
-import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.web.exception.DatabaseException;
 
 import java.sql.PreparedStatement;
@@ -16,23 +15,17 @@ import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
 
-@Repository
+@AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PROTECTED)
 public class BaseRepository<T> {
     final JdbcTemplate jdbc;
     final RowMapper<T> mapper;
 
-    @Autowired
-    public BaseRepository(JdbcTemplate jdbc, RowMapper<T> mapper) {
-        this.jdbc = jdbc;
-        this.mapper = mapper;
-    }
-
     protected Optional<T> findOne(String query, Object... params) {
         try {
             T result = jdbc.queryForObject(query, mapper, params);
             return Optional.ofNullable(result);
-        } catch (EmptyResultDataAccessException ignored) {
+        } catch (DataAccessException exception) {
             return Optional.empty();
         }
     }
@@ -56,7 +49,7 @@ public class BaseRepository<T> {
         }
     }
 
-    protected Long insertLong(String query, Object... params) {
+    protected Optional<Long> insertLong(String query, Object... params) {
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
         jdbc.update(connection -> {
             PreparedStatement ps = connection
@@ -68,11 +61,7 @@ public class BaseRepository<T> {
 
         Long id = keyHolder.getKeyAs(Long.class);
 
-        if (id != null) {
-            return id;
-        } else {
-            throw new DatabaseException("Не удалось сохранить данные");
-        }
+        return Optional.ofNullable(id);
     }
 
     protected void batchUpdate(String query, List<Object[]> batchArgs) {

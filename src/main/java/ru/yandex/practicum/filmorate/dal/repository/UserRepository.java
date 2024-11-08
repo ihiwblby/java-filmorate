@@ -1,7 +1,7 @@
 package ru.yandex.practicum.filmorate.dal.repository;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
+import lombok.AccessLevel;
+import lombok.experimental.FieldDefaults;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -15,19 +15,76 @@ import java.util.Collection;
 import java.util.Optional;
 
 @Repository
+@FieldDefaults(level = AccessLevel.PRIVATE)
 public class UserRepository extends BaseRepository<User> implements UserStorage {
 
-    @Autowired
-    public UserRepository(JdbcTemplate jdbcTemplate,
-                          @Qualifier("UserRowMapper") RowMapper<User> mapper) {
+    static final String SQL_CREATE_USER = """
+        INSERT INTO users (user_id, email, login, user_name, birthday)
+        VALUES (DEFAULT, ?, ?, ?, ?)
+        """;
+
+    static final String SQL_UPDATE_USER = """
+        UPDATE users
+        SET email = ?, login = ?, user_name = ?, birthday = ?
+        WHERE user_id = ?
+        """;
+
+    static final String SQL_FIND_ALL_USERS = """
+        SELECT *
+        FROM users
+        """;
+
+    static final String SQL_GET_USER_BY_ID = """
+        SELECT *
+        FROM users
+        WHERE user_id = ?
+        """;
+
+    static final String SQL_FIND_FRIENDSHIP = """
+        SELECT COUNT(*)
+        FROM user_friends
+        WHERE (user_id = ? AND friend_id = ?)
+        """;
+
+    static final String SQL_ADD_FRIEND = """
+        INSERT INTO user_friends (user_id, friend_id)
+        VALUES (?, ?)
+        """;
+
+    static final String SQL_DELETE_FRIEND = """
+        DELETE FROM user_friends
+        WHERE user_id = ? AND friend_id = ?
+        """;
+
+    static final String SQL_GET_FRIENDS_BY_USER_ID = """
+        SELECT u.*
+        FROM users AS u
+        JOIN user_friends AS uf ON u.user_id = uf.friend_id
+        WHERE uf.user_id = ?;
+        """;
+
+    static final String SQL_GET_COMMON_FRIENDS = """
+        SELECT u.*
+        FROM users AS u
+        JOIN user_friends AS uf1 ON u.user_id = uf1.friend_id
+        JOIN user_friends AS uf2 ON u.user_id = uf2.friend_id
+        WHERE uf1.user_id = ? AND uf2.user_id = ?;
+        """;
+
+    public UserRepository(JdbcTemplate jdbcTemplate, RowMapper<User> mapper) {
         super(jdbcTemplate, mapper);
     }
 
     @Override
     public User create(User user) {
-        String sqlQuery = "INSERT INTO users (user_id, email, login, user_name, birthday) VALUES (DEFAULT, ?, ?, ?, ?)";
         try {
-            Long id = insertLong(sqlQuery, user.getEmail(), user.getLogin(), user.getName(), user.getBirthday());
+            Long id = insertLong(
+                    SQL_CREATE_USER,
+                    user.getEmail(),
+                    user.getLogin(),
+                    user.getName(),
+                    user.getBirthday())
+                    .orElseThrow(() -> new DatabaseException("Некорректные данные пользователя"));
             user.setId(id);
             return user;
         } catch (DataIntegrityViolationException ex) {
@@ -38,20 +95,19 @@ public class UserRepository extends BaseRepository<User> implements UserStorage 
     @Override
     public User update(User user) {
         existsById(user.getId());
-        String sqlQuery = "UPDATE users SET email = ?, login = ?, user_name = ?, birthday = ? WHERE user_id = ?";
-        update(sqlQuery, user.getEmail(), user.getLogin(), user.getName(), user.getBirthday(), user.getId());
+        update(SQL_UPDATE_USER, user.getEmail(), user.getLogin(), user.getName(), user.getBirthday(), user.getId());
         return user;
     }
 
     @Override
     public Collection<User> findAll() {
-        return findMany("SELECT * FROM users")
+        return findMany(SQL_FIND_ALL_USERS)
                 .orElseThrow(() -> new NotFoundException("Пользователи не найдены"));
     }
 
     @Override
     public User getById(Long id) {
-       return findOne("SELECT * FROM users WHERE user_id = ?", id)
+       return findOne(SQL_GET_USER_BY_ID, id)
                .orElseThrow(() -> new NotFoundException("Пользователь с id " + id + " не найден"));
     }
 
@@ -60,73 +116,40 @@ public class UserRepository extends BaseRepository<User> implements UserStorage 
         existsById(userId);
         existsById(friendId);
 
-        // проверяем, являются ли пользователи друзьями
-        String checkAcceptedRequestQuery = """
-            SELECT COUNT(*) FROM user_friends
-            WHERE (user_id = ? AND friend_id = ? OR user_id = ? AND friend_id = ?) AND is_accepted = true
-            """;
-        Optional<Integer> acceptedRequestCountOpt = findInteger(checkAcceptedRequestQuery,
-                userId, friendId, friendId, userId);
-        if (acceptedRequestCountOpt.isPresent() && acceptedRequestCountOpt.get() == 2) {
-            throw new DatabaseException("Этот пользователь уже находится у вас в друзьях");
+        Optional<Integer> friendshipCount = findInteger(SQL_FIND_FRIENDSHIP,
+                userId, friendId);
+        if (friendshipCount.isPresent() && friendshipCount.get() > 0) {
+            throw new DatabaseException("Пользователь уже находится в друзьях");
         }
 
-        // проверяем, была ли уже отправлена заявка на дружбу
-        String checkExistingRequestQuery = """
-            SELECT COUNT(*) FROM user_friends
-            WHERE (user_id = ? AND friend_id = ? OR user_id = ? AND friend_id = ?) AND is_accepted = false
-            """;
-        Optional<Integer> existingRequestCountOpt = findInteger(checkExistingRequestQuery,
-                userId, friendId, friendId, userId);
-        if (existingRequestCountOpt.isPresent() && existingRequestCountOpt.get() == 1) {
-            throw new DatabaseException("Заявка на дружбу уже отправлена");
-        }
-
-        // Отправляем запрос на дружбу
-        String insertRequestQuery = "INSERT INTO user_friends (user_id, friend_id, is_accepted) VALUES (?, ?, ?)";
-        update(insertRequestQuery, userId, friendId, false);
+        update(SQL_ADD_FRIEND, userId, friendId);
     }
-
 
     @Override
     public void deleteFriend(Long userId, Long friendId) {
         existsById(userId);
         existsById(friendId);
-
-        String sqlQuery = "DELETE FROM user_friends WHERE user_id = ? AND friend_id = ?";
-        delete(sqlQuery, userId, friendId);
+        delete(SQL_DELETE_FRIEND, userId, friendId);
     }
 
     @Override
     public Collection<User> getFriends(Long userId) {
         existsById(userId);
-
-        String sql = """
-                SELECT u.user_id, u.email, u.login, u.user_name, u.birthday
-                FROM users u
-                JOIN user_friends uf ON (u.user_id = uf.friend_id OR u.user_id = uf.user_id)
-                WHERE (uf.user_id = ?)
-                AND u.user_id <> ?;
-                """;
-
-        return findMany(sql, userId)
+        return findMany(SQL_GET_FRIENDS_BY_USER_ID, userId, userId)
                 .orElseThrow(() -> new NotFoundException("У пользователя нет друзей :("));
     }
 
     @Override
     public Collection<User> getCommonFriends(Long userId, Long friendId) {
-        Collection<User> userFriends = getFriends(userId);
-        Collection<User> friendFriends = getFriends(friendId);
-
-        userFriends.retainAll(friendFriends);
-
-        return userFriends;
+        existsById(userId);
+        existsById(friendId);
+        return findMany(SQL_GET_COMMON_FRIENDS, userId, friendId)
+                .orElseThrow(() -> new NotFoundException("Нет общих друзей"));
     }
 
     @Override
     public void existsById(Long userId) {
-        String checkQuery = "SELECT * FROM users WHERE user_id = ?";
-        Optional<User> user = findOne(checkQuery, userId);
+        Optional<User> user = findOne(SQL_GET_USER_BY_ID, userId);
         if (user.isEmpty()) {
             throw new NotFoundException("Пользователь с ID " + userId + " не найден.");
         }
