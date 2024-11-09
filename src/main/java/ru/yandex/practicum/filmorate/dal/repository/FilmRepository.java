@@ -1,27 +1,31 @@
 package ru.yandex.practicum.filmorate.dal.repository;
 
 import lombok.AccessLevel;
+import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 import ru.yandex.practicum.filmorate.model.Film;
-import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.storage.FilmStorage;
-import ru.yandex.practicum.filmorate.storage.GenreStorage;
-import ru.yandex.practicum.filmorate.storage.UserStorage;
 import ru.yandex.practicum.filmorate.web.exception.DatabaseException;
 import ru.yandex.practicum.filmorate.web.exception.NotFoundException;
 
-import java.util.ArrayList;
+import java.sql.Date;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
+import java.sql.Types;
 import java.util.Collection;
-import java.util.List;
-import java.util.Optional;
-
+import java.util.Objects;
 
 @Repository
+@RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class FilmRepository extends BaseRepository<Film> implements FilmStorage {
+public class FilmRepository implements FilmStorage {
 
     static final String SQL_CREATE_FILM = """
             INSERT INTO films(film_name, description, release_date, duration, mpa_id)
@@ -31,11 +35,6 @@ public class FilmRepository extends BaseRepository<Film> implements FilmStorage 
     static final String SQL_UPDATE_FILM = """
             UPDATE films
             SET film_name = ?, description = ?, release_date = ?, duration = ?, mpa_id = ?
-            WHERE film_id = ?
-            """;
-
-    static final String SQL_DELETE_GENRES_FROM_FILM = """
-            DELETE FROM film_genres
             WHERE film_id = ?
             """;
 
@@ -50,14 +49,8 @@ public class FilmRepository extends BaseRepository<Film> implements FilmStorage 
             SELECT f.*,
                    r.mpa_name
             FROM films AS f
-            JOIN mpa_rating AS r ON r.mpa_id = f.mpa_id
+            LEFT JOIN mpa_rating AS r ON r.mpa_id = f.mpa_id
             WHERE f.film_id = ?
-            """;
-
-    static final String SQL_COUNT_FILM_LIKES_BY_USER = """
-            SELECT COUNT(*)
-            FROM film_likes
-            WHERE film_id = ? AND user_id = ?
             """;
 
     static final String SQL_ADD_FILM_LIKE = """
@@ -81,128 +74,82 @@ public class FilmRepository extends BaseRepository<Film> implements FilmStorage 
             LIMIT ?
             """;
 
-    static final String SQL_COUNT_FILMS_BY_ID = """
-            SELECT COUNT(*)
-            FROM films
-            WHERE film_id = ?
-            """;
-
-    static final String SQL_ADD_GENRES_TO_FILM = """
-            INSERT INTO film_genres (film_id, genre_id)
-            VALUES (?, ?)
-            """;
-
-    final GenreStorage genreStorage;
-    final UserStorage userStorage;
-
-    public FilmRepository(JdbcTemplate jdbcTemplate,
-                          GenreStorage genreStorage, UserStorage userStorage,
-                          RowMapper<Film> mapper) {
-        super(jdbcTemplate, mapper);
-        this.genreStorage = genreStorage;
-        this.userStorage = userStorage;
-    }
+    final JdbcTemplate jdbc;
+    final RowMapper<Film> mapper;
+    final GenreRepository genreRepo;
+    final MpaRatingRepository ratingRepo;
 
     @Override
     public Film create(Film film) {
-        Long id = insertLong(
-                SQL_CREATE_FILM,
-                film.getName(),
-                film.getDescription(),
-                film.getReleaseDate(),
-                film.getDuration(),
-                film.getMpaRating().getId())
-                .orElseThrow(() -> new DatabaseException("Некорректные данные о фильме"));
+        final KeyHolder keyHolder = new GeneratedKeyHolder();
+        try {
+            jdbc.update(connection -> {
+                PreparedStatement stmt = connection.prepareStatement(SQL_CREATE_FILM, Statement.RETURN_GENERATED_KEYS);
+                stmt.setString(1, film.getName());
+                stmt.setString(2, film.getDescription());
+                stmt.setDate(3, Date.valueOf(film.getReleaseDate()));
+                stmt.setInt(4, film.getDuration());
+                stmt.setObject(5, ratingRepo.checkMpaRating(film), Types.INTEGER);
+                return stmt;
+            }, keyHolder);
+        } catch (DataIntegrityViolationException ex) {
+            throw new DatabaseException("Некорректные данные рейтинга фильма");
+        }
 
+        Long id = Objects.requireNonNull(keyHolder.getKey()).longValue();
         film.setId(id);
 
         if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            addGenresToFilm(film);
+            genreRepo.addGenresToFilm(film);
         }
-
         return film;
     }
 
     @Override
     public Film update(Film film) {
-        existsById(film.getId());
-
-        update(SQL_UPDATE_FILM, film.getName(),
+        final int rowsUpdated = jdbc.update(SQL_UPDATE_FILM,
+                film.getName(),
                 film.getDescription(),
                 film.getReleaseDate(),
                 film.getDuration(),
-                film.getMpaRating().getId(),
-                film.getId()
-        );
-
-        if (film.getGenres() != null && !film.getGenres().isEmpty()) {
-            update(SQL_DELETE_GENRES_FROM_FILM, film.getId());
-            addGenresToFilm(film);
+                ratingRepo.checkMpaRating(film),
+                film.getId());
+        if (rowsUpdated == 0) {
+            throw new NotFoundException("Не удалось обновить данные. Фильм с ID " + film.getId() + " не найден");
         }
-
+        film.setGenres(genreRepo.getGenresByFilmId(film.getId()));
         return film;
     }
 
     @Override
     public Collection<Film> findAll() {
-        return findMany(SQL_FIND_ALL_FILMS)
-                .orElseThrow(() -> new NotFoundException("Фильмы не найдены"));
+        return jdbc.query(SQL_FIND_ALL_FILMS, mapper);
     }
 
     @Override
     public Film getById(Long id) {
-        existsById(id);
-        return findOne(SQL_GET_FILM_BY_ID, id)
-                .orElseThrow(() -> new NotFoundException("Фильм с id " + id + " не найден"));
+        final Film film;
+        try {
+            film = jdbc.queryForObject(SQL_GET_FILM_BY_ID, mapper, id);
+        } catch (EmptyResultDataAccessException e) {
+            throw new NotFoundException("Фильм с ID " + id + " не найден");
+        }
+        film.setGenres(genreRepo.getGenresByFilmId(id));
+        return film;
     }
 
     @Override
     public void addLike(Long filmId, Long userId) {
-        existsById(filmId);
-        userStorage.existsById(userId);
-
-        Optional<Integer> likesCount = findInteger(SQL_COUNT_FILM_LIKES_BY_USER, filmId, userId);
-
-        if (likesCount.isEmpty() || likesCount.get() == 0) {
-            update(SQL_ADD_FILM_LIKE, filmId, userId);
-        } else {
-            throw new DatabaseException("Пользователь уже поставил лайк этому фильму");
-        }
+        jdbc.update(SQL_ADD_FILM_LIKE, filmId, userId);
     }
 
     @Override
     public void deleteLike(Long filmId, Long userId) {
-        existsById(filmId);
-        userStorage.existsById(userId);
-        delete(SQL_DELETE_FILM_LIKE, filmId, userId);
+        jdbc.update(SQL_DELETE_FILM_LIKE, filmId, userId);
     }
 
     @Override
     public Collection<Film> getMostLiked(int count) {
-        return findMany(SQL_GET_MOST_LIKED_FILMS, count)
-                .orElseThrow(() -> new NotFoundException("Фильмы не найдены"));
-    }
-
-    @Override
-    public void existsById(Long filmId) {
-        Optional<Integer> count = findInteger(SQL_COUNT_FILMS_BY_ID, filmId);
-        if (count.isEmpty()) {
-            throw new NotFoundException("Фильм с ID " + filmId + " не найден.");
-        }
-    }
-
-    private void addGenresToFilm(Film film) {
-        final Collection<Genre> existingGenres = genreStorage.findAll();
-
-        List<Object[]> batchArgs = new ArrayList<>();
-        for (Genre genre : film.getGenres()) {
-            if (!existingGenres.contains(genre)) {
-                batchArgs.add(new Object[]{film.getId(), genre.getId()});
-            }
-        }
-
-        if (!batchArgs.isEmpty()) {
-            batchUpdate(SQL_ADD_GENRES_TO_FILM, batchArgs);
-        }
+        return jdbc.query(SQL_GET_MOST_LIKED_FILMS, mapper, count);
     }
 }

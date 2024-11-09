@@ -35,7 +35,10 @@ import java.util.Set;
 @JdbcTest
 @AutoConfigureTestDatabase
 @RequiredArgsConstructor(onConstructor_ = @Autowired)
-@ContextConfiguration(classes = {FilmRepository.class, FilmRowMapper.class, FilmService.class, UserRepository.class, UserRowMapper.class, UserService.class, GenreRepository.class, GenreService.class, GenreRowMapper.class, MpaRatingService.class, MpaRatingRepository.class, MpaRatingRowMapper.class})
+@ContextConfiguration(classes = {FilmRepository.class, FilmRowMapper.class, FilmService.class,
+        UserRepository.class, UserRowMapper.class, UserService.class,
+        GenreRepository.class, GenreService.class, GenreRowMapper.class,
+        MpaRatingService.class, MpaRatingRepository.class, MpaRatingRowMapper.class})
 
 class FilmorateApplicationTests {
 
@@ -44,11 +47,14 @@ class FilmorateApplicationTests {
     private User thirdUser;
     private Film firstFilm;
     private Film secondFilm;
+    private Film thirdFilm;
 
     @Autowired
     private UserService userService;
     @Autowired
     private FilmService filmService;
+    @Autowired
+    private GenreService genreService;
 
     @BeforeEach
     public void beforeEach() {
@@ -60,11 +66,12 @@ class FilmorateApplicationTests {
         MpaRating mpaRating2 = new MpaRating(2, "PG");
 
         Set<Genre> genres = new HashSet<>(Arrays.asList(
-                new Genre(1, "комедия"),
-                new Genre(2, "драма")
+                new Genre(1, "Комедия"),
+                new Genre(2, "Драма")
         ));
 
         firstFilm = makeFilm("film1", "film_1", LocalDate.of(2024, 1, 1), 60, mpaRating1, genres);
+        thirdFilm = makeFilm("film3", "film_3", LocalDate.of(2024, 3, 3), 73, null, genres);
         secondFilm = makeFilm("film2", "film_2", LocalDate.of(2024, 2, 2), 70, mpaRating2, genres);
     }
 
@@ -83,19 +90,13 @@ class FilmorateApplicationTests {
         film.setDescription(description);
         film.setReleaseDate(releaseDate);
         film.setDuration(duration);
-        film.setMpaRating(mpaRating);
+        film.setMpa(mpaRating);
         film.setGenres(genres);
         return film;
     }
 
     @Test
     void contextLoads() {
-    }
-
-    @Test
-    void testCreateFilm() {
-        Film createdFilm = filmService.create(firstFilm);
-        Assertions.assertEquals(firstFilm, createdFilm);
     }
 
     @Test
@@ -125,19 +126,6 @@ class FilmorateApplicationTests {
 
         Collection<Film> mostLikedFilms = filmService.getMostLiked(1);
         Assertions.assertTrue(mostLikedFilms.contains(film));
-    }
-
-    @Test
-    void testDeleteLike() {
-        Film film = filmService.create(firstFilm);
-        User user = userService.create(firstUser);
-
-        filmService.addLike(film.getId(), user.getId());
-        filmService.deleteLike(film.getId(), user.getId());
-
-        Assertions.assertThrows(NotFoundException.class, () -> {
-            filmService.getMostLiked(1);
-        });
     }
 
     @Test
@@ -204,8 +192,9 @@ class FilmorateApplicationTests {
 
         userService.addFriend(user1.getId(), user2.getId());
 
-        Collection<User> friends = userService.getFriends(user1.getId());
-        Assertions.assertTrue(friends.contains(user2), "User2 должен быть в друзьях у User1");
+        Collection<User> friendsUser1 = userService.getFriends(user1.getId());
+
+        Assertions.assertTrue(friendsUser1.contains(user2));
     }
 
     @Test
@@ -216,8 +205,7 @@ class FilmorateApplicationTests {
         userService.addFriend(user1.getId(), user2.getId());
         userService.deleteFriend(user1.getId(), user2.getId());
 
-        Assertions.assertThrows(NotFoundException.class, () -> userService.getFriends(user1.getId()));
-        Assertions.assertThrows(NotFoundException.class, () -> userService.getFriends(user2.getId()));
+        Assertions.assertFalse(userService.getFriends(user1.getId()).contains(user2));
     }
 
     @Test

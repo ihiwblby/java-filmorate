@@ -36,7 +36,8 @@ public class Film {
     @Positive(message = "Продолжительность должна быть положительным числом")
     Integer duration;
 
-    MpaRating mpaRating;
+    @NotNull
+    MpaRating mpa;
 
     @JsonDeserialize(as = LinkedHashSet.class)
     Set<Genre> genres = new HashSet<>();

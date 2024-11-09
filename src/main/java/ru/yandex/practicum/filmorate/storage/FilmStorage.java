@@ -18,6 +18,4 @@ public interface FilmStorage {
     void deleteLike (Long filmId, Long userId);
 
     Collection<Film> getMostLiked(int count);
-
-    void existsById(Long id);
 }

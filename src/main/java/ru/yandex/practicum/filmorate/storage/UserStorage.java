@@ -22,6 +22,4 @@ public interface UserStorage {
     Collection<User> getFriends(Long userId);
 
     Collection<User> getCommonFriends(Long userId, Long friendId);
-
-    void existsById(Long userId);
 }
