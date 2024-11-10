@@ -1,13 +1,13 @@
-package ru.yandex.practicum.filmorate.controller;
+package ru.yandex.practicum.filmorate.web.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import ru.yandex.practicum.filmorate.exception.ConditionsNotMetException;
-import ru.yandex.practicum.filmorate.exception.NotFoundException;
-import ru.yandex.practicum.filmorate.model.ErrorResponse;
+import ru.yandex.practicum.filmorate.web.exception.ConditionsNotMetException;
+import ru.yandex.practicum.filmorate.web.exception.DatabaseException;
+import ru.yandex.practicum.filmorate.web.exception.NotFoundException;
 
 import java.util.stream.Collectors;
 
@@ -39,5 +39,11 @@ public class ErrorHandler {
                 .map(fieldError -> String.format("%s: %s", fieldError.getField(), fieldError.getDefaultMessage()))
                 .collect(Collectors.joining(", "));
         return new ErrorResponse("Ошибка валидации", errorMessage);
+    }
+
+    @ExceptionHandler
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ErrorResponse handleDatabase(DatabaseException e) {
+        return new ErrorResponse("Произошла ошибка во время работы с базой данных", e.getMessage());
     }
 }
