@@ -5,7 +5,6 @@ import ru.yandex.practicum.filmorate.model.User;
 
 import java.util.Collection;
 
-@Component
 public interface UserStorage {
     User create(User user);
 
