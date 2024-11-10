@@ -46,12 +46,9 @@ class FilmorateApplicationTests {
     private User user3;
     private Film film1;
     private Film film2;
-
-    @Autowired
+    
     private UserService userService;
-    @Autowired
     private FilmService filmService;
-    @Autowired
     private GenreService genreService;
 
     @BeforeEach
